@@ -68,6 +68,14 @@ class TestBaseModule(unittest.TestCase):
             self.test_model_1.id, self.test_model_1.__dict__)
         self.assertEqual(str(self.test_model_1), output)
 
+    def test_instantiation_with_kwargs(self):
+        dt = datetime.today()
+        dt_iso = dt.isoformat()
+        test_model_3 = BaseModel(id="98", created_at=dt_iso, updated_at=dt_iso)
+        self.assertEqual(test_model_3.id, "98")
+        self.assertEqual(test_model_3.created_at, dt)
+        self.assertEqual(test_model_3.updated_at, dt)
+
 
 if __name__ == "__main__":
     unittest.main()
