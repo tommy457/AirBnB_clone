@@ -1,4 +1,4 @@
-#!/usr/bin/puthon3
+#!/usr/bin/python3
 """Module for BaseModel Class"""
 from uuid import uuid4
 from datetime import datetime
