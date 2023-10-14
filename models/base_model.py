@@ -21,7 +21,7 @@ class BaseModel:
                     )
                 else:
                     self.__dict__[key] = kwargs[key]
-        else:
+        if not kwargs:
             self.id = str(uuid4())
             self.created_at = datetime.today()
             self.updated_at = datetime.today()
