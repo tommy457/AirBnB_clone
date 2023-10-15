@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 """Module for the Custom command line for project"""
 import cmd
+import re
 from models import storage
 from models.base_model import BaseModel
 from models.user import User
@@ -9,6 +10,7 @@ from models.city import City
 from models.state import State
 from models.review import Review
 from models.amenity import Amenity
+import shlex
 
 
 class HBNBCommand(cmd.Cmd):
@@ -18,7 +20,62 @@ class HBNBCommand(cmd.Cmd):
     prompt = '(hbnb) '
     cls_names = [
         "BaseModel", "User", "Place", "State", "City", "Amenity", "Review"
-        ]
+    ]
+
+    def default(self, line):
+        """
+        Method called on an input line when the command
+        prefix <class name>.command(<arguments>)
+        """
+        matched_line = re.match(r"^(\w+)\.(\w+)\((.*)\)", line)
+        if matched_line:
+            cmds = {
+                "all": self.do_all,
+                "show": self.do_show,
+                "count": self.do_count,
+                "destroy": self.do_destroy,
+            }
+            copy_line = re.sub(r'[(){},:\.]', ' ', line)
+            commands = shlex.split(copy_line)
+            nmbr_of_args = len(commands)
+
+            if (
+                nmbr_of_args == 2
+                and (commands[1] == "all" or commands[1] == "count")
+            ):
+                cmds[commands[1]](commands[0])
+
+            elif (
+                nmbr_of_args == 3
+                and (commands[1] == "show" or commands[1] == "destroy")
+            ):
+                cmds[commands[1]](commands[0] + ' ' + commands[2])
+
+            elif nmbr_of_args == 5 and commands[1] == "update":
+                commands[0], commands[1] = commands[1], commands[0]
+                _line = ' '.join(commands[1:])
+                self.do_update(_line)
+
+            elif nmbr_of_args > 5 and commands[1] == "update":
+                commands[0], commands[1] = commands[1], commands[0]
+                for i in range(3, nmbr_of_args, 2):
+                    attr_name = commands[i]
+                    attr_value = commands[i + 1]
+                    _line = ' '.join(
+                        commands[1:3]) + ' ' + attr_name + ' ' + attr_value
+                    self.do_update(_line)
+        else:
+            return super().default(line)
+
+    def do_count(self, line):
+        """Method that retrieve the number of instances of a class"""
+        objs = storage.all()
+        count = 0
+
+        for obj in objs:
+            if line == objs[obj].to_dict()["__class__"]:
+                count += 1
+        print(count)
 
     def do_create(self, class_name):
         """
@@ -98,14 +155,13 @@ class HBNBCommand(cmd.Cmd):
         adding or updating attribute (save the change into the JSON
         """
         commands = line.split(' ')
-
         if (line == '' or line is None):
             print("** class name missing **")
         else:
             if commands[0] not in self.cls_names:
                 print("** class doesn't exist **")
 
-            elif not self.is_valid_id(commands[1]):
+            elif len(commands) < 2:
                 print("** instance id missing **")
 
             elif "{}.{}".format(commands[0], commands[1]) not in storage.all():
@@ -120,9 +176,9 @@ class HBNBCommand(cmd.Cmd):
             else:
                 key = "{}.{}".format(commands[0], commands[1])
                 obj = storage.all()[key]
-                value = commands[3].replace('"', '')
-                attrs = obj.__class__.__dict__.keys()
-                cast_type = self.get_type(obj, attrs, commands[2])
+                value = commands[3].strip('"')
+                attrs = obj.__dict__.keys()
+                cast_type = self.get_type(value, obj, attrs, commands[2])
 
                 try:
                     value = cast_type(value)
@@ -131,24 +187,18 @@ class HBNBCommand(cmd.Cmd):
                 setattr(storage.all()[key], commands[2], value)
                 storage.all()[key].save()
 
-    def is_valid_id(self, id):
-        """Helper method to validate uuid"""
-        import uuid
-        try:
-            uuid.UUID(str(id))
-            return True
-        except ValueError:
-            return False
-
-    def get_type(self, value, attrs, attr):
+    def get_type(self, value, obj, attrs, attr):
         """Helper to get type of an attribute"""
         import re
+
         if attr in attrs:
-            cast_type = type(value.__class__.__dict__[attr])
+            cast_type = type(obj.__dict__[attr])
         elif re.match(r"^\d+$", value):
             cast_type = int
         elif re.match(r"^\d+\.\d+$", value):
             cast_type = float
+        else:
+            cast_type = str
 
         return cast_type
 
@@ -160,7 +210,8 @@ class HBNBCommand(cmd.Cmd):
         return True
 
     def do_quit(self, line):
-        """Quit command to exit the program
+        """
+        Quit command to exit the program
         """
         return True
 
@@ -171,5 +222,5 @@ class HBNBCommand(cmd.Cmd):
         pass
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     HBNBCommand().cmdloop()
